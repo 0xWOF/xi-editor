@@ -1,50 +1,32 @@
-use std::io;
+// Copyright 2016 Google Inc. All rights reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! RPC handling for communications with front-end.
+
 use std::collections::BTreeMap;
-use std::io::Write;
 use std::error;
 use std::fmt;
-use serde_json;
-use serde_json::builder::ObjectBuilder;
 use serde_json::Value;
 
 // =============================================================================
 //  Request handling
 // =============================================================================
 
-pub fn send(v: &Value) -> Result<(), io::Error> {
-    let mut s = serde_json::to_string(v).unwrap();
-    s.push('\n');
-    //print_err!("from core: {}", s);
-    io::stdout().write_all(s.as_bytes())
-}
-
-pub fn respond(result: &Value, id: Option<&Value>)
-{
-    if let Some(id) = id {
-        if let Err(e) = send(&ObjectBuilder::new()
-                             .insert("id", id)
-                             .insert("result", result)
-                             .unwrap()) {
-            print_err!("error {} sending response to RPC {:?}", e, id);
-        }
-    } else {
-        print_err!("tried to respond with no id");
-    }
-}
-
 impl<'a> Request<'a> {
-    pub fn from_json(val: &'a Value) -> Result<Self, Error> {
-        use self::Error::*;
-
-        val.as_object().ok_or(InvalidRequest).and_then(|req| {
-            if let (Some(method), Some(params)) =
-                (dict_get_string(req, "method"), req.get("params")) {
-
-                    let id = req.get("id");
-                    TabCommand::from_json(method, params).map(|cmd| Request::TabCommand { id: id, tab_command: cmd})
-                }
-            else { Err(InvalidRequest) }
-        })
+    pub fn from_json(method: &'a str, params: &'a Value) -> Result<Self, Error> {
+        TabCommand::from_json(method, params).map(|cmd|
+            Request::TabCommand { tab_command: cmd})
     }
 }
 
@@ -54,7 +36,7 @@ impl<'a> Request<'a> {
 
 #[derive(Debug, PartialEq)]
 pub enum Request<'a> {
-    TabCommand { id: Option<&'a Value>, tab_command: TabCommand<'a> }
+    TabCommand { tab_command: TabCommand<'a> }
 }
 
 /// An enum representing a tab command, parsed from JSON.
@@ -76,6 +58,7 @@ pub enum EditCommand<'a> {
     DeleteToEndOfParagraph,
     DeleteToBeginningOfLine,
     InsertNewline,
+    InsertTab,
     MoveUp,
     MoveUpAndModifySelection,
     MoveDown,
@@ -111,6 +94,7 @@ pub enum EditCommand<'a> {
     Copy,
     DebugRewrap,
     DebugTestFgSpans,
+    DebugRunPlugin,
 }
 
 impl<'a> TabCommand<'a> {
@@ -178,6 +162,7 @@ impl<'a> EditCommand<'a> {
             "delete_to_end_of_paragraph" => Ok(DeleteToEndOfParagraph),
             "delete_to_beginning_of_line" => Ok(DeleteToBeginningOfLine),
             "insert_newline" => Ok(InsertNewline),
+            "insert_tab" => Ok(InsertTab),
             "move_up" => Ok(MoveUp),
             "move_up_and_modify_selection" => Ok(MoveUpAndModifySelection),
             "move_down" => Ok(MoveDown),
@@ -243,6 +228,7 @@ impl<'a> EditCommand<'a> {
             "copy" => Ok(Copy),
             "debug_rewrap" => Ok(DebugRewrap),
             "debug_test_fg_spans" => Ok(DebugTestFgSpans),
+            "debug_run_plugin" => Ok(DebugRunPlugin),
 
             _ => Err(UnknownEditMethod(method.to_string())),
         }
@@ -256,7 +242,6 @@ impl<'a> EditCommand<'a> {
 /// An error that occurred while parsing an edit command.
 #[derive(Debug, PartialEq)]
 pub enum Error {
-    InvalidRequest,
     UnknownTabMethod(String), // method name
     MalformedTabParams(String, Value), // method name, malformed params
     UnknownEditMethod(String), // method name
@@ -270,7 +255,6 @@ impl fmt::Display for Error {
         use self::Error::*;
 
         match *self {
-            InvalidRequest => write!(f, "Error: invalid request"),
             UnknownTabMethod(ref method) => write!(f, "Error: Unknown tab method '{}'", method),
             MalformedTabParams(ref method, ref params) =>
                 write!(f, "Error: Malformed tab parameters with method '{}', parameters: {:?}", method, params),
@@ -286,7 +270,6 @@ impl error::Error for Error {
         use self::Error::*;
 
         match *self {
-            InvalidRequest => "Invalid request",
             UnknownTabMethod(_) => "Unknown tab method",
             MalformedTabParams(_, _) => "Malformed tab parameters",
             UnknownEditMethod(_) => "Unknown edit method",
@@ -300,11 +283,11 @@ impl error::Error for Error {
 // =============================================================================
 
 fn dict_get_u64(dict: &BTreeMap<String, Value>, key: &str) -> Option<u64> {
-    dict.get(key).and_then(|v| v.as_u64())
+    dict.get(key).and_then(Value::as_u64)
 }
 
 fn dict_get_string<'a>(dict: &'a BTreeMap<String, Value>, key: &str) -> Option<&'a str> {
-    dict.get(key).and_then(|v| v.as_string())
+    dict.get(key).and_then(Value::as_string)
 }
 
 fn arr_get_u64(arr: &[Value], idx: usize) -> Option<u64> {
