@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2016 Google Inc. All rights reserved.
+# Copyright 2016 The xi-editor Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ import random
 linebreak_assignments = ['XX', 'AI', 'AL', 'B2', 'BA', 'BB', 'BK', 'CB', 'CL',
 'CM', 'CR', 'EX', 'GL', 'HY', 'ID', 'IN', 'IS', 'LF', 'NS', 'NU', 'OP', 'PO',
 'PR', 'QU', 'SA', 'SG', 'SP', 'SY', 'ZW', 'NL', 'WJ', 'H2', 'H3', 'JL', 'JT',
-'JV', 'CP', 'CJ', 'HL', 'RI']
+'JV', 'CP', 'CJ', 'HL', 'RI', 'ZWJ', 'EB', 'EM']
 
 inv_lb_assigments = dict((val, i) for (i, val) in enumerate(linebreak_assignments))
 
@@ -104,7 +104,7 @@ def mk_linebreak_props(datadir):
     gen_table('LINEBREAK_4_LEAVES', 'u8', leaves4);
 
 def mk_tables(datadir):
-    print """// Copyright 2016 Google Inc. All rights reserved.
+    print """// Copyright 2016 The xi-editor Authors.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -172,7 +172,7 @@ def mk_lb_rules():
 
     t = {}
     ts = {}  # transitions for when there is one or more SP
-    Any = linebreak_assignments + ['HL+HY', 'HL+BA']
+    Any = linebreak_assignments + ['HL+HY', 'HL+BA', 'RI+RI']
     # LB1: todo (affects South East Asian scripts)
 
     # LB2: handled in code
@@ -196,6 +196,9 @@ def mk_lb_rules():
 
     # LB8
     update_both(t, ts, 'ZW', Any, '_')
+
+    # LB8a
+    update(t, 'ZWJ', ['ID', 'EB', 'EM'], 'x')
 
     # LB9: handled in state machine construction
     # LB10: handled in state machine construction
@@ -257,22 +260,23 @@ def mk_lb_rules():
     # LB22:
     update(t, ['AL', 'HL'], 'IN', 'x')
     update(t, 'EX', 'IN', 'x')
-    update(t, 'ID', 'IN', 'x')
+    update(t, ['ID', 'EB', 'EM'], 'IN', 'x')
     update(t, 'IN', 'IN', 'x')
     update(t, 'NU', 'IN', 'x')
 
     # LB23:
-    update(t, 'ID', 'PO', 'x')
     update(t, ['AL', 'HL'], 'NU', 'x')
     update(t, 'NU', ['AL', 'HL'], 'x')
 
-    # LB24:
-    update(t, 'PR', 'ID', 'x')
+    # LB23a:
+    update(t, 'PR', ['ID', 'EB', 'EM'], 'x')
+    update(t, ['ID', 'EB', 'EM'], 'PO', 'x')
 
     # LB24:
-    update(t, 'PR', 'ID', 'x')
     update(t, 'PR', ['AL', 'HL'], 'x')
     update(t, 'PO', ['AL', 'HL'], 'x')
+    update(t, 'AL', ['PR', 'PO'], 'x')
+    update(t, 'HL', ['PR', 'PO'], 'x')
 
     # LB25:
     update(t, 'CL', 'PO', 'x')
@@ -312,19 +316,25 @@ def mk_lb_rules():
 
     # LB30a:
     update(t, 'RI', 'RI', 'x')
+    update(t, Any, 'RI+RI', '_')
+    update(t, 'RI+RI', Any, '_')
+
+    # LB30b:
+    update(t, 'EB', 'EM', 'x')
 
     # LB31:
     update_both(t, ts, Any, Any, '_')
 
     # state machine construction
-    # states [0..40) correspond to LB class of previous ch
-    # state 40 is 'HL+HY'
-    # state 41 is 'HL+BA'
-    # states [42..82) correspond to LB class (SP+)
+    # states [0..43) correspond to LB class of previous ch
+    # state 43 is 'HL+HY'
+    # state 44 is 'HL+BA'
+    # state 45 is 'RI+RI'
+    # states [46..89) correspond to LB class (SP+)
     # result is new state on bottom (LB of right ch), + 0x80 if break + 0x40 if hard
-    # (note that only states 0..40 need be represented if break)
+    # (note that only states 0..43 need be represented if break)
     n = len(linebreak_assignments)
-    nspecial = 2
+    nspecial = 3
     nstates = n * 2 + nspecial
     sm = []
     for i in range(nstates):
@@ -339,10 +349,15 @@ def mk_lb_rules():
             R = linebreak_assignments[right]
             R = resolve_ambig(R)
             r_with_cm = right
-            if R == 'CM' and L in ['BK', 'CR', 'LF', 'NL', 'SP', 'ZW']:
+            l_with_cm = left
+            if R in ['CM', 'ZWJ'] and L in ['BK', 'CR', 'LF', 'NL', 'SP', 'ZW']:
                 # handling for LB10
                 r_with_cm = 2  # AL
                 bk = t[L + '|' + 'AL']
+            elif L == 'ZWJ' and R not in ['ID', 'EB', 'EM']:
+                #handling for LB10
+                l_with_cm = 2  # AL
+                bk = t['AL' + '|' + R]
             else:
                 bk = t[L + '|' + R]
             flags = bk_to_flags[bk]
@@ -357,9 +372,12 @@ def mk_lb_rules():
             elif flags == 0 and L == 'HL' and R == 'BA':
                 # special state for LB21a
                 state = n + 1
-            elif R == 'CM' and L not in ['BK', 'CR', 'LF', 'NL', 'SP', 'ZW']:
+            elif R in ['CM', 'ZWJ'] and L not in ['BK', 'CR', 'LF', 'NL', 'SP', 'ZW']:
                 # handling for LB9
-                state = left
+                state = l_with_cm
+            elif flags == 0 and R == 'RI' and L == 'RI':
+                # handling for LB31
+                state = n + 2
             else:
                 state = flags + r_with_cm
             #print '//', L, R, bk, state

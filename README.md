@@ -1,17 +1,22 @@
 <h1 align="center">
-  <a href="https://github.com/google/xi-editor"><img src="icons/xi-editor.png" alt="Xi Editor" width="256" height="256"/></a><br>
-  <a href="https://github.com/google/xi-editor">Xi Editor</a>
+  <a href="https://github.com/xi-editor/xi-editor"><img src="icons/xi-editor.png" alt="Xi Editor" width="256" height="256"/></a><br>
+  <a href="https://github.com/xi-editor/xi-editor">Xi Editor</a>
 </h1>
+
+<p align="center"><em>(pronounced "Zigh")</em></p>
 
 <h4 align="center">A modern editor with a backend written in Rust.</h4>
 
-The xi editor project is an attempt to build a high quality text editor,
+***Note:*** *This is repo contains only the editor core, which is not usable on its own. For editors based on it, check out the list in [Frontends](#frontends).*
+
+The xi-editor project is an attempt to build a high quality text editor,
 using modern software engineering techniques. It is initially built for
-Mac OS X, using Cocoa for the user interface, but other targets are planned.
+macOS, using Cocoa for the user interface. There are also frontends for
+other operating systems available from third-party developers.
 
 Goals include:
 
-* ***Insanely high performance***. All editing operations should commit and paint
+* ***Incredibly high performance***. All editing operations should commit and paint
   in under 16ms. The editor should never make you wait for anything.
 
 * ***Beauty***. The editor should fit well on a modern desktop, and not look like a
@@ -24,40 +29,70 @@ Goals include:
 * ***Developer friendliness***. It should be easy to customize xi editor, whether
   by adding plug-ins or hacking on the core.
 
+**Learn more** with the creator of Xi, Raph Levien, in this [Recurse Center Localhost talk](https://www.recurse.com/events/localhost-raph-levien
+).
+
 Screenshot (will need to be updated as syntax coloring and UI polish is added):
 
-![xi screenshot](/doc/img/xi-mac-screenshot.png?raw=true)
+![xi-mac screenshot](/docs/docs/img/xi-mac-screenshot.png?raw=true)
+
 
 ## Getting started
-You need [Xcode 7.3](https://developer.apple.com/xcode/) (only on Mac) and [Rust](https://www.rust-lang.org/) (version 1.8+ is
-recommended and supported). You should have `cargo` in your path.
 
-```
-> git clone https://github.com/google/xi-editor
-> cd xi-editor
-> xcodebuild
-> open build/Release/XiEditor.app
-```
+This repository is the core only. You'll also need a front-end, from the list
+below.
 
-Or `open XiEditor.xcodeproj` and hit the Run button.
-
-It will look better if you have [InconsolataGo](http://levien.com/type/myfonts/inconsolata.html)
-installed, a customized version of Inconsolata tuned for code editing. To choose other
-fonts, edit the `CTFontCreateWithName()` call in EditView.swift.
 
 ### Building the core
 
-If you’re not on a Mac, you can build just the core like so:
+Xi-editor targets 'recent stable Rust'. We recommend installing via [rustup](https://www.rustup.rs).
+The current minimum supported version is 1.31.
+
+To build the xi-editor core from the root directory of this repo:
 
 ```
 > cd rust
 > cargo build
 ```
 
-See the [xi_glium](https://github.com/potocpav/xi_glium) project for an
-experimental front-end in Rust. There are notes (I wouldn’t call it
+
+## Frontends
+
+Here are some front-ends in various stages of development:
+
+* [xi-mac](https://github.com/xi-editor/xi-mac), the official macOS front-end.
+
+* [fuchsia/xi](https://fuchsia.googlesource.com/topaz/+/master/bin/xi/), a front-end in Flutter for Fuchsia.
+
+* [xi-gtk](https://github.com/eyelash/xi-gtk), a GTK+ front-end.
+
+* [xi-term](https://github.com/xi-frontend/xi-term), a text UI.
+
+* [xi-electron](https://github.com/acheronfail/xi-electron), a cross-platform front-end based on web-technologies.
+
+* [gxi](https://github.com/Cogitri/gxi), a GTK+ front-end written in Rust. Forked from https://github.com/bvinc/gxi, which was abandoned.
+
+* [xi-win](https://github.com/xi-editor/xi-win), an experimental Windows front-end written in Rust.
+
+* [kod](https://github.com/linde12/kod), a terminal frontend written in Golang.
+
+* [xi-qt](https://github.com/sw5cc/xi-qt), a Qt front-end.
+
+The following are currently inactive, based on earlier versions of the front-end
+protocol, but perhaps could be revitalized:
+
+* [xi_glium](https://github.com/potocpav/xi_glium), an
+experimental GL-based front-end in Rust.
+
+* [XiEditorVS2015](https://github.com/Sineaggi/XiEditorVS2015), C#.
+
+* [xi-android](https://github.com/adrientetar/xi-android), an Android frontend.
+
+There are notes (I wouldn’t call it
 documentation at this point) on the protocol at
-[frontend.md](doc/frontend.md).
+[frontend.md](https://xi-editor.github.io/xi-editor/docs/frontend-protocol.html). If you're working on a front-end, feel free to
+send a PR to add it to the above list.
+
 
 ## Design decisions
 
@@ -104,26 +139,34 @@ contribute to the above goals:
   languages, and there are plenty of the libraries available for the other
   ones.
 
+
 ## Current status
 
 This is still a project in its early stages. The Mac build has basic editing
 functionality (it was used to write this README), but looks very spare and
-is still missing essentials such as syntax highlighting and auto-indent. At
-the moment, it’s expected that its main community will be developers
-interested in hacking on a text editor.
+is still missing essentials such as auto-indent. At the moment, it’s expected
+that its main community will be developers interested in hacking on a text
+editor.
 
 
 ## Authors
 
-The main author is Raph Levien.
+The xi-editor project was started by Raph Levien but has since received
+contributions from a number of other people. See the [AUTHORS](AUTHORS)
+file for details.
+
+
+## License
+
+This project is licensed under the Apache 2 [license](LICENSE).
+
 
 ## Contributions
 
-We gladly accept contributions via GitHub pull requests, as long as the author
-has signed the Google Contributor License. Please see
-[CONTRIBUTING.md](CONTRIBUTING.md) for more details.
+We gladly accept contributions via GitHub pull requests. Please see
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) for more details.
 
-### Disclaimer
-
-This is not an official Google product (experimental or otherwise), it
-is just code that happens to be owned by Google.
+If you are interested in contributing but not sure where to start, there is an
+active Zulip channel at #xi-editor on https://xi.zulipchat.com. There is also
+a #xi channel on irc.mozilla.org. Finally, there is a subreddit at
+[/r/xi_editor](https://www.reddit.com/r/xi_editor/).
